@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞羽工作系统 V1.0</title>
+    <!-- 1. 引入 Supabase SDK（新增） -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/dist/umd/supabase.min.js"></script>
+    <!-- 引入SheetJS库用于Excel导出 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        /* 原有样式不变，省略（保持原代码样式） */
+        :root {
+            --primary-color: #2563eb;
+            --primary-light: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #1e40af;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #f0f4ff 0%, #e6e9ff 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            line-height: 1.5;
+        }
+
+        /* 密码验证样式 */
+        .auth-container {
+            max-width: 420px;
+            margin: 5rem auto;
+            padding: 0 1rem;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .auth-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 2.5rem;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.8);
+        }
+
+        .logo {
+            width: 90px;
+            height: 90px;
+            border-radius: var(--radius-md);
+            object-fit: cover;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .auth-title {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .auth-form {
+            width: 100%;
+        }
+
+        /* 登录界面底部文字 */
+        .auth-footer {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            color: #6b7280;
+            width: 100%;
+        }
+
+        /* 顶部导航 */
+        header {
+            background: linear-gradient(90deg, var(--primary-dark), var(--primary-color));
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-logo img {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            object-fit: cover;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .logout-btn:hover {
+            background: white;
+            color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        nav {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background: white;
+            color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* 主内容区 */
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            display: none; /* 默认隐藏，验证后显示 */
+            flex: 1;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* 卡片与布局 */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius-md);
+            padding: 1.8rem;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 1.8rem;
+            border: 1px solid rgba(255,255,255,0.9);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-3px);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.2rem;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        input, select {
+            padding: 0.85rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-size: 1rem;
+            transition: var(--transition);
+            background: #f9fafb;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            background: white;
+        }
+
+        button {
+            padding: 0.85rem 1.5rem;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--primary-dark), var(--primary-color));
+            color: white;
+            width: 100%;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            opacity: 0.95;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-edit {
+            background-color: var(--warning-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            margin-right: 0.5rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-edit:hover {
+            background-color: #d97706;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* 导出按钮样式 */
+        .btn-export {
+            background-color: var(--success-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            margin-right: 0.5rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .btn-export:hover {
+            background-color: #059669;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* 表格样式 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background: white;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        th, td {
+            text-align: left;
+            padding: 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        tr:hover {
+            background-color: #f9fafb;
+        }
+
+        /* 统计面板 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            text-align: center;
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            background: white;
+            border-left: 4px solid #333;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-card.income { 
+            border-left-color: var(--success-color);
+            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+        }
+        .stat-card.expense { 
+            border-left-color: var(--danger-color);
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        }
+        .stat-card.balance { 
+            border-left-color: var(--primary-color);
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        }
+
+        .stat-title {
+            font-size: 0.95rem;
+            color: #6b7280;
+            margin-bottom: 0.8rem;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* 分页样式 */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .pagination-select {
+            padding: 0.5rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        /* 主界面底部文字 */
+        .main-footer {
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.1rem;
+            color: #4b5563;
+            font-weight: 600;
+            display: none;
+            background: white;
+            margin-top: auto;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .hidden { display: none; }
+        .error-text {
+            color: var(--danger-color);
+            font-size: 0.85rem;
+            margin-top: 0.8rem;
+            display: none;
+            text-align: center;
+        }
+        /* 新增加载提示样式 */
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 密码验证模块 -->
+    <div class="auth-container" id="auth-module">
+        <div class="auth-card">
+            <img src="https://github.com/xuanfei2022/wo-de-tupian/blob/main/3efa6c639b859410f8209db649efb275.png?raw=true" 
+                 alt="系统Logo" class="logo">
+            <h2 class="auth-title">飞羽工作系统</h2>
+            <form class="auth-form" id="password-form" onsubmit="verifyPassword(event)">
+                <div class="form-group">
+                    <label>系统密码</label>
+                    <input type="password" id="system-password" required placeholder="请输入系统密码">
+                </div>
+                <div class="error-text" id="password-error">密码错误，请重试</div>
+                <button type="submit" class="btn-primary">验证进入</button>
+            </form>
+            <div class="auth-footer">陕西炫飞航天技术有限公司出品</div>
+        </div>
+    </div>
+
+    <!-- 系统主界面（默认隐藏） -->
+    <header id="main-header" style="display:none">
+        <div class="header-logo">
+            <img src="https://github.com/xuanfei2022/wo-de-tupian/blob/main/3efa6c639b859410f8209db649efb275.png?raw=true" 
+                 alt="系统Logo">
+            <h1>飞羽工作系统 V1.0</h1>
+        </div>
+        <nav>
+            <button class="nav-btn active" onclick="switchTab('material')">物料管理</button>
+            <button class="nav-btn" onclick="switchTab('finance')">收支流水</button>
+        </nav>
+        <div class="user-info">
+            <button class="logout-btn" onclick="logout()">退出系统</button>
+        </div>
+    </header>
+
+    <div class="container" id="main-container">
+        <!-- 物料管理模块 -->
+        <div id="material-section" class="section active">
+            <div class="card">
+                <h3 style="margin-top:0; color:#374151; margin-bottom:1rem">物料登记 / 编辑</h3>
+                <form id="material-form" onsubmit="saveMaterial(event)">
+                    <input type="hidden" id="material-id">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>物料名称</label>
+                            <input type="text" id="material-name" required placeholder="例如：打印纸">
+                        </div>
+                        <div class="form-group">
+                            <label>数量</label>
+                            <input type="number" id="material-qty" required placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label>单位</label>
+                            <input type="text" id="material-unit" required placeholder="个/箱/盒">
+                        </div>
+                        <div class="form-group">
+                            <label>备注</label>
+                            <input type="text" id="material-note" placeholder="可选">
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn-primary" id="material-submit-btn">保存物料</button>
+                            <button type="button" class="hidden" id="material-cancel-btn" onclick="resetMaterialForm()">取消编辑</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin-top:0; color:#374151;">库存列表</h3>
+                    <button class="btn-export" onclick="exportMaterialsToExcel()">导出Excel</button>
+                </div>
+                <!-- 加载提示 -->
+                <div id="material-loading" class="loading" style="display:none">加载中...</div>
+                <table id="material-table" style="display:none">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>库存数量</th>
+                            <th>单位</th>
+                            <th>备注</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="material-table-body">
+                    </tbody>
+                </table>
+                <div id="material-pagination" class="pagination"></div>
+            </div>
+        </div>
+
+        <!-- 收支流水模块 -->
+        <div id="finance-section" class="section">
+            <div class="card">
+                <div class="stats-grid">
+                    <div class="stat-card income">
+                        <div class="stat-title">总收入</div>
+                        <div class="stat-value" id="total-income">¥0.00</div>
+                    </div>
+                    <div class="stat-card expense">
+                        <div class="stat-title">总支出</div>
+                        <div class="stat-value" id="total-expense">¥0.00</div>
+                    </div>
+                    <div class="stat-card balance">
+                        <div class="stat-title">结余</div>
+                        <div class="stat-value" id="total-balance">¥0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top:0; color:#374151; margin-bottom:1rem">添加记录</h3>
+                <form id="finance-form" onsubmit="saveFinance(event)">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>日期</label>
+                            <input type="date" id="finance-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>类型</label>
+                            <select id="finance-type" required>
+                                <option value="income">收入</option>
+                                <option value="expense">支出</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>金额</label>
+                            <input type="number" step="0.01" id="finance-amount" required placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>摘要/备注</label>
+                            <input type="text" id="finance-desc" required placeholder="例如：办公用品采购">
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="btn-primary">添加记录</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin-top:0; color:#374151;">流水明细</h3>
+                    <button class="btn-export" onclick="exportFinancesToExcel()">导出Excel</button>
+                </div>
+                <!-- 加载提示 -->
+                <div id="finance-loading" class="loading" style="display:none">加载中...</div>
+                <table id="finance-table" style="display:none">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>类型</th>
+                            <th>摘要</th>
+                            <th>金额</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="finance-table-body">
+                    </tbody>
+                </table>
+                <div id="finance-pagination" class="pagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-footer" id="main-footer">筑梦蓝天  共创未来</div>
+
+    <script>
+        // 2. 初始化 Supabase 客户端（新增，替换为你的项目URL和anon key）
+        const SUPABASE_URL = 'https://fpuwbwmkvsjpvsoplssi.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwdXdid21rdnNqcHZzb3Bsc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NDI0ODcsImV4cCI6MjA5MjUxODQ4N30.RKb_hSfcp_-TkWe83QzrtkHm5SOqxwEj97e8HEIVtn4';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 全局数据（仅用于前端分页，实际数据从Supabase获取）
+        let materials = [];
+        let finances = [];
+        const SYSTEM_PASSWORD = 'xf2022';
+
+        // 分页配置
+        const materialPagination = { currentPage: 1, pageSize: 10, totalPages: 1 };
+        const financePagination = { currentPage: 1, pageSize: 10, totalPages: 1 };
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('finance-date').valueAsDate = new Date();
+            // 初始加载数据（改为从Supabase获取）
+            fetchMaterials();
+            fetchFinances();
+        });
+
+        // ================= Supabase 数据操作（核心新增） =================
+        // 获取所有物料
+        async function fetchMaterials() {
+            try {
+                showMaterialLoading(true);
+                const { data, error } = await supabase
+                    .from('materials')
+                    .select('*')
+                    .order('name'); // 按名称排序
+                
+                if (error) throw error;
+                materials = data || [];
+                renderMaterials();
+            } catch (err) {
+                alert('获取物料失败：' + err.message);
+            } finally {
+                showMaterialLoading(false);
+            }
+        }
+
+        // 保存/更新物料
+        async function saveMaterialToSupabase(material) {
+            try {
+                const { error } = await supabase
+                    .from('materials')
+                    .upsert(material, { onConflict: 'id' }); // 存在id则更新，否则新增
+                
+                if (error) throw error;
+                await fetchMaterials(); // 重新获取最新数据
+            } catch (err) {
+                alert('保存物料失败：' + err.message);
+            }
+        }
+
+        // 删除物料
+        async function deleteMaterialFromSupabase(id) {
+            try {
+                const { error } = await supabase
+                    .from('materials')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                await fetchMaterials(); // 重新获取最新数据
+            } catch (err) {
+                alert('删除物料失败：' + err.message);
+            }
+        }
+
+        // 获取所有收支记录
+        async function fetchFinances() {
+            try {
+                showFinanceLoading(true);
+                const { data, error } = await supabase
+                    .from('finances')
+                    .select('*')
+                    .order('date', { ascending: false }); // 按日期倒序
+                
+                if (error) throw error;
+                finances = data || [];
+                renderFinances();
+            } catch (err) {
+                alert('获取收支记录失败：' + err.message);
+            } finally {
+                showFinanceLoading(false);
+            }
+        }
+
+        // 保存收支记录
+        async function saveFinanceToSupabase(finance) {
+            try {
+                const { error } = await supabase
+                    .from('finances')
+                    .insert(finance);
+                
+                if (error) throw error;
+                await fetchFinances(); // 重新获取最新数据
+            } catch (err) {
+                alert('保存收支记录失败：' + err.message);
+            }
+        }
+
+        // 删除收支记录
+        async function deleteFinanceFromSupabase(id) {
+            try {
+                const { error } = await supabase
+                    .from('finances')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                await fetchFinances(); // 重新获取最新数据
+            } catch (err) {
+                alert('删除收支记录失败：' + err.message);
+            }
+        }
+
+        // 加载状态控制
+        function showMaterialLoading(show) {
+            document.getElementById('material-loading').style.display = show ? 'block' : 'none';
+            document.getElementById('material-table').style.display = show ? 'none' : 'block';
+        }
+
+        function showFinanceLoading(show) {
+            document.getElementById('finance-loading').style.display = show ? 'block' : 'none';
+            document.getElementById('finance-table').style.display = show ? 'none' : 'block';
+        }
+
+        // ================= 原有功能改造 =================
+        // 密码验证（无改动）
+        function verifyPassword(e) {
+            e.preventDefault();
+            const inputPassword = document.getElementById('system-password').value.trim();
+            const errorEl = document.getElementById('password-error');
+
+            if (inputPassword !== SYSTEM_PASSWORD) {
+                errorEl.style.display = 'block';
+                document.getElementById('system-password').style.animation = 'shake 0.5s ease-in-out';
+                setTimeout(() => {
+                    document.getElementById('system-password').style.animation = '';
+                }, 500);
+                return;
+            }
+            showMainSystem();
+        }
+
+        // 退出系统（无改动）
+        function logout() {
+            if (confirm('确定要退出系统吗？')) {
+                document.getElementById('auth-module').style.display = 'block';
+                document.getElementById('main-header').style.display = 'none';
+                document.getElementById('main-container').style.display = 'none';
+                document.getElementById('main-footer').style.display = 'none';
+                document.getElementById('password-form').reset();
+                document.getElementById('password-error').style.display = 'none';
+            }
+        }
+
+        // 显示系统主界面（无改动）
+        function showMainSystem() {
+            document.getElementById('auth-module').style.display = 'none';
+            document.getElementById('main-header').style.display = 'flex';
+            document.getElementById('main-container').style.display = 'block';
+            document.getElementById('main-footer').style.display = 'block';
+        }
+
+        // 切换标签（无改动）
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+
+            if (tab === 'material') {
+                document.querySelectorAll('.nav-btn')[0].classList.add('active');
+                document.getElementById('material-section').classList.add('active');
+            } else {
+                document.querySelectorAll('.nav-btn')[1].classList.add('active');
+                document.getElementById('finance-section').classList.add('active');
+            }
+        }
+
+        // ================= 物料管理改造 =================
+        function saveMaterial(e) {
+            e.preventDefault();
+            const id = document.getElementById('material-id').value;
+            const name = document.getElementById('material-name').value;
+            const qty = parseInt(document.getElementById('material-qty').value);
+            const unit = document.getElementById('material-unit').value;
+            const note = document.getElementById('material-note').value;
+
+            const material = {
+                id: id || Date.now().toString(), // 无id则生成新ID
+                name, qty, unit, note
+            };
+
+            saveMaterialToSupabase(material); // 改为调用Supabase保存
+            resetMaterialForm();
+        }
+
+        function editMaterial(id) {
+            const mat = materials.find(m => m.id === id);
+            document.getElementById('material-id').value = mat.id;
+            document.getElementById('material-name').value = mat.name;
+            document.getElementById('material-qty').value = mat.qty;
+            document.getElementById('material-unit').value = mat.unit;
+            document.getElementById('material-note').value = mat.note;
+            
+            document.getElementById('material-submit-btn').textContent = '确认修改';
+            document.getElementById('material-cancel-btn').classList.remove('hidden');
+        }
+
+        function deleteMaterial(id) {
+            if (confirm('确定要删除该物料吗？')) {
+                materialPagination.currentPage = 1;
+                deleteMaterialFromSupabase(id); // 改为调用Supabase删除
+            }
+        }
+
+        function resetMaterialForm() {
+            document.getElementById('material-form').reset();
+            document.getElementById('material-id').value = '';
+            document.getElementById('material-submit-btn').textContent = '保存物料';
+            document.getElementById('material-cancel-btn').classList.add('hidden');
+        }
+
+        // 渲染物料列表（逻辑不变，仅依赖从Supabase获取的materials数组）
+        function renderMaterials() {
+            const tbody = document.getElementById('material-table-body');
+            tbody.innerHTML = '';
+
+            const totalItems = materials.length;
+            materialPagination.totalPages = Math.ceil(totalItems / materialPagination.pageSize);
+            const startIndex = (materialPagination.currentPage - 1) * materialPagination.pageSize;
+            const endIndex = startIndex + materialPagination.pageSize;
+            const currentMaterials = materials.slice(startIndex, endIndex);
+
+            currentMaterials.forEach(m => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${m.name}</td>
+                    <td><strong>${m.qty}</strong></td>
+                    <td>${m.unit}</td>
+                    <td>${m.note || '-'}</td>
+                    <td>
+                        <button class="btn-edit" onclick="editMaterial('${m.id}')">编辑</button>
+                        <button class="btn-danger" onclick="deleteMaterial('${m.id}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateMaterialPaginationUI();
+        }
+
+        // 物料分页相关（无改动）
+        function updateMaterialPaginationUI() {
+            const paginationEl = document.getElementById('material-pagination');
+            paginationEl.innerHTML = `
+                <div>
+                    每页条数: 
+                    <select class="pagination-select" id="material-page-size" onchange="changeMaterialPageSize()">
+                        <option value="5" ${materialPagination.pageSize === 5 ? 'selected' : ''}>5</option>
+                        <option value="10" ${materialPagination.pageSize === 10 ? 'selected' : ''}>10</option>
+                        <option value="20" ${materialPagination.pageSize === 20 ? 'selected' : ''}>20</option>
+                        <option value="50" ${materialPagination.pageSize === 50 ? 'selected' : ''}>50</option>
+                    </select>
+                </div>
+                <div>
+                    <button class="btn-edit" onclick="prevMaterialPage()" ${materialPagination.currentPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed"' : ''}>上一页</button>
+                    <span>第 ${materialPagination.currentPage} 页 / 共 ${materialPagination.totalPages || 1} 页（总计 ${materials.length} 条）</span>
+                    <button class="btn-edit" onclick="nextMaterialPage()" ${materialPagination.currentPage === materialPagination.totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed"' : ''}>下一页</button>
+                </div>
+            `;
+        }
+
+        function changeMaterialPageSize() {
+            const pageSize = parseInt(document.getElementById('material-page-size').value);
+            materialPagination.pageSize = pageSize;
+            materialPagination.currentPage = 1;
+            renderMaterials();
+        }
+
+        function prevMaterialPage() {
+            if (materialPagination.currentPage > 1) {
+                materialPagination.currentPage--;
+                renderMaterials();
+            }
+        }
+
+        function nextMaterialPage() {
+            if (materialPagination.currentPage < materialPagination.totalPages) {
+                materialPagination.currentPage++;
+                renderMaterials();
+            }
+        }
+
+        // 导出物料到Excel（无改动）
+        function exportMaterialsToExcel() {
+            const headers = ['物料名称', '库存数量', '单位', '备注'];
+            const data = materials.map(m => [
+                m.name,
+                m.qty,
+                m.unit,
+                m.note || '-'
+            ]);
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+            ws['!cols'] = [{ wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 30 }];
+            XLSX.utils.book_append_sheet(wb, ws, '物料清单');
+
+            const fileName = `飞羽系统-物料清单-${formatDate(new Date())}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        // ================= 收支流水改造 =================
+        function saveFinance(e) {
+            e.preventDefault();
+            const date = document.getElementById('finance-date').value;
+            const type = document.getElementById('finance-type').value;
+            const amount = parseFloat(document.getElementById('finance-amount').value);
+            const desc = document.getElementById('finance-desc').value;
+
+            const finance = {
+                id: Date.now().toString(),
+                date, type, amount, desc
+            };
+
+            saveFinanceToSupabase(finance); // 改为调用Supabase保存
+            document.getElementById('finance-form').reset();
+            document.getElementById('finance-date').valueAsDate = new Date();
+            financePagination.currentPage = 1;
+        }
+
+        function deleteFinance(id) {
+            if (confirm('确定要删除这条记录吗？')) {
+                financePagination.currentPage = 1;
+                deleteFinanceFromSupabase(id); // 改为调用Supabase删除
+            }
+        }
+
+        // 渲染收支列表（逻辑不变）
+        function renderFinances() {
+            const tbody = document.getElementById('finance-table-body');
+            tbody.innerHTML = '';
+            
+            let totalIncome = 0;
+            let totalExpense = 0;
+
+            const totalItems = finances.length;
+            financePagination.totalPages = Math.ceil(totalItems / financePagination.pageSize);
+            const startIndex = (financePagination.currentPage - 1) * financePagination.pageSize;
+            const endIndex = startIndex + financePagination.pageSize;
+            const currentFinances = finances.slice(startIndex, endIndex);
+
+            finances.forEach(f => {
+                if (f.type === 'income') totalIncome += parseFloat(f.amount);
+                else totalExpense += parseFloat(f.amount);
+            });
+
+            currentFinances.forEach(f => {
+                const colorClass = f.type === 'income' ? 'color:#10b981' : 'color:#ef4444';
+                const typeText = f.type === 'income' ? '收入' : '支出';
+                const sign = f.type === 'income' ? '+' : '-';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${f.date}</td>
+                    <td>${typeText}</td>
+                    <td>${f.desc}</td>
+                    <td style="${colorClass}"><strong>${sign}¥${f.amount.toFixed(2)}</strong></td>
+                    <td>
+                        <button class="btn-danger" onclick="deleteFinance('${f.id}')">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 更新统计数据
+            document.getElementById('total-income').textContent = `¥${totalIncome.toFixed(2)}`;
+            document.getElementById('total-expense').textContent = `¥${totalExpense.toFixed(2)}`;
+            document.getElementById('total-balance').textContent = `¥${(totalIncome - totalExpense).toFixed(2)}`;
+
+            updateFinancePaginationUI();
+        }
+
+        // 收支分页相关
+        function updateFinancePaginationUI() {
+            const paginationEl = document.getElementById('finance-pagination');
+            paginationEl.innerHTML = `
+                <div>
+                    每页条数: 
+                    <select class="pagination-select" id="finance-page-size" onchange="changeFinancePageSize()">
+                        <option value="5" ${financePagination.pageSize === 5 ? 'selected' : ''}>5</option>
+                        <option value="10" ${financePagination.pageSize === 10 ? 'selected' : ''}>10</option>
+                        <option value="20" ${financePagination.pageSize === 20 ? 'selected' : ''}>20</option>
+                        <option value="50" ${financePagination.pageSize === 50 ? 'selected' : ''}>50</option>
+                    </select>
+                </div>
+                <div>
+                    <button class="btn-edit" onclick="prevFinancePage()" ${financePagination.currentPage === 1 ? 'disabled style="opacity:0.5; cursor:not-allowed"' : ''}>上一页</button>
+                    <span>第 ${financePagination.currentPage} 页 / 共 ${financePagination.totalPages || 1} 页（总计 ${finances.length} 条）</span>
+                    <button class="btn-edit" onclick="nextFinancePage()" ${financePagination.currentPage === financePagination.totalPages ? 'disabled style="opacity:0.5; cursor:not-allowed"' : ''}>下一页</button>
+                </div>
+            `;
+        }
+
+        function changeFinancePageSize() {
+            const pageSize = parseInt(document.getElementById('finance-page-size').value);
+            financePagination.pageSize = pageSize;
+            financePagination.currentPage = 1;
+            renderFinances();
+        }
+
+        function prevFinancePage() {
+            if (financePagination.currentPage > 1) {
+                financePagination.currentPage--;
+                renderFinances();
+            }
+        }
+
+        function nextFinancePage() {
+            if (financePagination.currentPage < financePagination.totalPages) {
+                financePagination.currentPage++;
+                renderFinances();
+            }
+        }
+
+        // 导出收支到Excel
+        function exportFinancesToExcel() {
+            const headers = ['日期', '类型', '摘要', '金额(元)'];
+            const data = finances.map(f => [
+                f.date,
+                f.type === 'income' ? '收入' : '支出',
+                f.desc,
+                f.type === 'income' ? `+${f.amount.toFixed(2)}` : `-${f.amount.toFixed(2)}`
+            ]);
+
+            // 添加统计行
+            const totalIncome = finances.filter(f => f.type === 'income').reduce((sum, f) => sum + parseFloat(f.amount), 0);
+            const totalExpense = finances.filter(f => f.type === 'expense').reduce((sum, f) => sum + parseFloat(f.amount), 0);
+            const balance = totalIncome - totalExpense;
+            
+            data.push(['', '', '总收入', `+${totalIncome.toFixed(2)}`]);
+            data.push(['', '', '总支出', `-${totalExpense.toFixed(2)}`]);
+            data.push(['', '', '结余', balance.toFixed(2)]);
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+            ws['!cols'] = [{ wch: 15 }, { wch: 8 }, { wch: 30 }, { wch: 15 }];
+            XLSX.utils.book_append_sheet(wb, ws, '收支流水');
+
+            const fileName = `飞羽系统-收支流水-${formatDate(new Date())}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        // 工具函数：格式化日期
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}${month}${day}`;
+        }
+    </script>
+</body>
+</html>
